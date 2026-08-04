@@ -1,0 +1,6 @@
+{
+  "name": "Harvest Orbit",
+  "description": "An Earth observation analytics platform for actionable agricultural insights.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
