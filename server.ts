@@ -9,9 +9,35 @@ async function startServer() {
 
   app.use(express.json());
 
+  app.use((req, res, next) => {
+    console.log(`Request: ${req.method} ${req.url}`);
+    next();
+  });
+
+  // Sensor Data Store
+  let latestSensorData: Record<string, { data: any, lastUpdated: number }> = {};
+
+  app.post("/api/sensor-data", (req, res) => {
+    const { deviceId, ...data } = req.body;
+    if (!deviceId) return res.status(400).json({ error: "deviceId required" });
+    latestSensorData[deviceId] = { data, lastUpdated: Date.now() };
+    res.status(200).json({ status: "ok" });
+  });
+
+  app.get("/api/sensor-data/:deviceId", (req, res) => {
+    const { deviceId } = req.params;
+    console.log(`Fetching data for device: ${deviceId}`);
+    const nodeData = latestSensorData[deviceId];
+    if (!nodeData) return res.status(404).json({ error: "Node not found" });
+    
+    // Check if offline (e.g., no update in 60s)
+    const isOffline = Date.now() - nodeData.lastUpdated > 60000;
+    res.json({ ...nodeData.data, isOffline });
+  });
+
   // Gemini API Proxy Route
   app.post("/api/analyze", async (req, res) => {
-    const { fieldName, cropType, coordinates, ndviScore, band8, band4, alertThreshold } = req.body;
+    const { fieldName, cropType, coordinates, ndviScore } = req.body;
 
     if (!process.env.GEMINI_API_KEY) {
       return res.status(500).json({ error: "Gemini API key not configured" });
@@ -24,14 +50,15 @@ async function startServer() {
       },
     });
 
-    const prompt = `Analyze the following Earth Observation field report:
+    const nodeData = latestSensorData["FieldNode-01"];
+    const sensorInfo = nodeData ? `Temperature: ${nodeData.data.temperature}°C, Humidity: ${nodeData.data.humidity}%, Heat Index: ${nodeData.data.heatIndex}°C` : "No recent sensor data";
+    
+    const prompt = `Analyze the following Earth Observation field report, considering the latest ESP32 sensor data:
 Field Name: ${fieldName}
 Crop Type: ${cropType}
 Location: ${coordinates}
 Computed NDVI Score: ${ndviScore}
-Band 8 (Near-Infrared Reflectance): ${band8}
-Band 4 (Red Spectrum Reflectance): ${band4}
-Alert Health Threshold: ${alertThreshold}
+Current ESP32 Sensor Data: ${sensorInfo}
 
 Provide a 3-part diagnosis and recommendation report for the farmer. Format your response strictly in the following JSON structure:
 
@@ -52,13 +79,11 @@ Provide a 3-part diagnosis and recommendation report for the farmer. Format your
         model: "gemini-3.6-flash",
         contents: prompt,
         config: {
-          systemInstruction: `You are Harvest Orbit's Lead Satellite Agronomist AI, designed to democratize Earth Observation data for small-scale farmers, school biology clubs, and urban gardeners.
-
-Your job is to take multispectral satellite data (such as NDVI vegetation scores, Near-Infrared Band 8, and Visible Red Band 4) and translate it into plain-language, encouraging, and highly actionable farming advice.
-
+          systemInstruction: `You are Harvest Orbit's Lead Satellite Agronomist AI.
+Translate multispectral satellite data into plain-language, encouraging, and highly actionable farming advice.
 Guidelines:
-1. Avoid dense scientific jargon; explain terms simply if you mention them.
-2. Be direct and helpful. Prioritize practical physical steps (e.g., check soil moisture, inspect leaves, apply natural fertilizer).
+1. Avoid dense scientific jargon.
+2. Be direct and helpful. Prioritize practical physical steps.
 3. Always format your output strictly as the requested JSON structure.`,
           responseMimeType: "application/json",
         },
@@ -76,18 +101,18 @@ Guidelines:
   // Weather Data Proxy Route
   app.get("/api/weather", async (req, res) => {
     const { coordinates } = req.query;
-    // In a real app, use a weather API here (e.g., OpenWeatherMap)
-    // Simulating weather data for demo purposes
+    // In a production app, use NASA_API_KEY to fetch weather from NASA POWER API.
+    // For now, simulate with temperature data from ESP32.
     res.json({
-      temperature: "28°C",
-      humidity: "65%",
-      precipitation: "10%"
+      temperature: `${latestSensorData.temperature.toFixed(1)}°C`,
+      humidity: `${latestSensorData.humidity.toFixed(1)}%`,
+      precipitation: "N/A"
     });
   });
 
   // Chat Bot Proxy Route
   app.post("/api/chat", async (req, res) => {
-    const { message, history } = req.body;
+    const { message, history, context } = req.body;
     if (!process.env.GEMINI_API_KEY) {
       return res.status(500).json({ error: "Gemini API key not configured" });
     }
@@ -100,8 +125,13 @@ Guidelines:
         history: history || [],
     });
     
+    const prompt = `Answer the following question about the field, considering the provided context (Field Report and ESP32 Sensor data):
+Question: ${message}
+Context: ${JSON.stringify(context)}
+`;
+    
     try {
-        const result = await chat.sendMessage(message);
+        const result = await chat.sendMessage(prompt);
         res.json({ response: result.text });
     } catch (error) {
         console.error("Chat error:", error);
