@@ -231,7 +231,7 @@ function AppContent() {
                 </div>
             </div>
             
-            <SatelliteAnalysis />
+            <SatelliteAnalysis result={result} sensorData={sensorData} />
             <GroundSensorSection data={sensorData} />
             <FieldSummarySection result={result} sensorData={sensorData} />
         </div>

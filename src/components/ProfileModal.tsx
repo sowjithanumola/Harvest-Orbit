@@ -9,7 +9,7 @@ export const ProfileModal = ({ user, onClose }: { user: AuthUser, onClose: () =>
     const { theme, toggleTheme } = useTheme();
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[100]">
             <div className={`p-8 rounded-2xl w-full max-w-sm relative ${theme === 'dark' ? 'bg-slate-900 border border-slate-700' : 'bg-white border border-slate-200'}`}>
                 <button onClick={onClose} className="absolute top-4 right-4"><X /></button>
                 <h2 className="text-xl font-bold mb-6">Profile & Settings</h2>
