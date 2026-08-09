@@ -14,8 +14,7 @@ import { db, auth, provider } from "./lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { 
     onAuthStateChanged, 
-    signInWithRedirect, 
-    getRedirectResult,
+    signInWithPopup, 
     User, 
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword 
@@ -86,7 +85,6 @@ function AppContent() {
     const unsub = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
     });
-    getRedirectResult(auth).catch((error) => console.error("Redirect login error:", error));
     return () => unsub();
   }, []);
 
@@ -102,7 +100,7 @@ function AppContent() {
 
   const handleLogin = async () => {
     try {
-      await signInWithRedirect(auth, provider);
+      await signInWithPopup(auth, provider);
     } catch (error) {
       console.error("Login failed:", error);
     }
