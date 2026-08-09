@@ -98,7 +98,8 @@ function AppContent() {
     return () => unsub();
   }, [user]);
 
-  const handleLogin = async () => {
+  const handleLogin = async (e: React.MouseEvent) => {
+    e.preventDefault();
     try {
       await signInWithPopup(auth, provider);
     } catch (error) {
@@ -201,7 +202,7 @@ function AppContent() {
                       {isLoginMode ? "Need an account? Sign up" : "Have an account? Login"}
                   </button>
                   <div className="border-t border-slate-700 pt-6">
-                      <button onClick={handleLogin} className="w-full flex items-center justify-center gap-2 bg-white text-slate-900 py-3 rounded-xl font-bold hover:bg-slate-200">
+                      <button onClick={(e) => handleLogin(e as any)} className="w-full flex items-center justify-center gap-2 bg-white text-slate-900 py-3 rounded-xl font-bold hover:bg-slate-200">
                           <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" className="w-5 h-5" /> Login with Google
                       </button>
                   </div>
